@@ -16,7 +16,7 @@ os.makedirs(save_dir, exist_ok=True)
 
 # Hyperparameters
 batch_size = 100
-epochs = 10
+epochs = 3
 latent_dim = 256
 
 # Prepare data
@@ -48,6 +48,44 @@ decoder_target_seq = tgt_tokenizer.texts_to_sequences(tgt_ref_data)
 decoder_target_seq = [np.pad(s, (0, max_tgt - len(s)), 'constant', constant_values=0) for s in decoder_target_seq]
 decoder_target_data = to_categorical(decoder_target_seq)
 
+# Save vocabs
+vocabs = { 'src_word2id': src_word2id, 'tgt_word2id': tgt_word2id }
+with open(save_dir + '/vocabs.pkl', 'wb') as f:
+    pickle.dump(vocabs, f)
+
+
+def build_and_save_predict_models(latent_dim, encoder_inputs, encoder_states, decoder_inputs, epoch):
+    # Predict models
+    encoder_model = Model(encoder_inputs, encoder_states)
+    decoder_state_input_h = Input(shape=(latent_dim,))
+    decoder_state_input_c = Input(shape=(latent_dim,))
+    decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
+    decoder_outputs, state_h, state_c = decoder_lstm(decoder_inputs, initial_state=decoder_states_inputs)
+    decoder_states = [state_h, state_c]
+    decoder_outputs = decoder_dense(decoder_outputs)
+    decoder_model = Model([decoder_inputs] + decoder_states_inputs, [decoder_outputs] + decoder_states)
+
+    # Save predict models
+    encoder_model.save(save_dir + '/encoder_model.h5')
+    encoder_model.save_weights(save_dir + '/encoder_model_weights.{}.h5'.format(epoch+1))
+    decoder_model.save(save_dir + '/decoder_model.h5')
+    decoder_model.save_weights(save_dir + '/decoder_model_weights.{}.h5'.format(epoch+1))
+
+
+# CustomCallback
+class SavePredictModelCallback(keras.callbacks.Callback):
+    def __init__(self, latent_dim, encoder_inputs, encoder_states, decoder_inputs, **kwargs):
+        super().__init__(**kwargs)
+        self.latent_dim = latent_dim
+        self.encoder_inputs = encoder_inputs
+        self.encoder_states = encoder_states
+        self.decoder_inputs = decoder_inputs
+
+    def on_epoch_end(self, epoch, logs={}):
+        build_and_save_predict_models(self.latent_dim, self.encoder_inputs,
+                                      self.encoder_states, self.decoder_inputs, epoch)
+        print('Saved predict models.')
+
 # Train model
 encoder_inputs = Input(shape=(None, len(src_word2id)))
 encoder = LSTM(latent_dim, return_state=True)
@@ -59,38 +97,12 @@ decoder_outputs, _, _ = decoder_lstm(decoder_inputs, initial_state=encoder_state
 decoder_dense = Dense(len(tgt_word2id), activation='softmax')
 decoder_outputs = decoder_dense(decoder_outputs)
 model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
+model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
 
 # Run training
-model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
-model.fit([encoder_input_data, decoder_input_data], decoder_target_data,
-          batch_size=batch_size, epochs=epochs, validation_split=0.2)
+hist = model.fit([encoder_input_data, decoder_input_data], decoder_target_data,
+          batch_size=batch_size, epochs=epochs, validation_split=0.2, verbose=1,
+          callbacks=[SavePredictModelCallback(latent_dim, encoder_inputs, encoder_states, decoder_inputs)])
 
-# Save train model
-model.save(save_dir + '/train_model.h5')
-model.save_weights(save_dir + '/train_model_weights.h5')
-
-
-# Predict models
-encoder_model = Model(encoder_inputs, encoder_states)
-
-decoder_state_input_h = Input(shape=(latent_dim,))
-decoder_state_input_c = Input(shape=(latent_dim,))
-decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
-decoder_outputs, state_h, state_c = decoder_lstm(decoder_inputs, initial_state=decoder_states_inputs)
-decoder_states = [state_h, state_c]
-decoder_outputs = decoder_dense(decoder_outputs)
-decoder_model = Model([decoder_inputs] + decoder_states_inputs, [decoder_outputs] + decoder_states)
-
-# Save predict models
-encoder_model.save(save_dir + '/encoder_model.h5')
-encoder_model.save_weights(save_dir + '/encoder_model_weights.h5')
-decoder_model.save(save_dir + '/decoder_model.h5')
-decoder_model.save_weights(save_dir + '/decoder_model_weights.h5')
-
-# Save vocabs
-vocabs = {
-    'src_word2id': src_word2id,
-    'tgt_word2id': tgt_word2id,
-}
-with open(save_dir + '/vocabs.pkl', 'wb') as f:
-    pickle.dump(vocabs, f)
+# Save history
+open(save_dir + '/history.txt', 'w').write(str(hist.history) + '\n')
