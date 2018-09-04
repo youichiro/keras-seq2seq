@@ -9,8 +9,8 @@ import numpy as np
 import pickle
 
 # Files
-src_file = 'datasets/train.en'
-tgt_file = 'datasets/train.ja'
+src_file = 'datasets/train.en.1000'
+tgt_file = 'datasets/train.ja.1000'
 save_dir = 'tanaka_en_ja'
 os.makedirs(save_dir, exist_ok=True)
 
@@ -20,6 +20,7 @@ epochs = 2
 latent_dim = 300
 
 # Prepare data
+print('\nLoading data.')
 src_data = [line.rstrip() for line in open(src_file, 'r')]
 tgt_data = ['bos ' + line.rstrip() + ' eos' for line in open(tgt_file, 'r')]
 tgt_input_data = [s.replace(' eos', '') for s in tgt_data]
@@ -52,9 +53,16 @@ decoder_target_seq = [np.pad(s, (0, max_tgt - len(s)), 'constant', constant_valu
 decoder_target_data = to_categorical(decoder_target_seq)
 
 # Save vocabs
-vocabs = { 'src_word2id': src_word2id, 'tgt_word2id': tgt_word2id }
-with open(save_dir + '/vocabs.pkl', 'wb') as f:
-    pickle.dump(vocabs, f)
+holds = {
+    'src_tokenizer': src_tokenizer,
+    'tgt_tokenizer': tgt_tokenizer,
+    'src_word2id': src_word2id,
+    'tgt_word2id': tgt_word2id,
+    'max_src': max_src,
+    'max_tgt': max_tgt,
+}
+with open(save_dir + '/holds.pkl', 'wb') as f:
+    pickle.dump(holds, f)
 
 
 def build_and_save_predict_models(latent_dim, encoder_inputs, encoder_states, decoder_inputs, epoch):
@@ -103,6 +111,7 @@ model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
 model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
 
 # Run training
+print('\nRun training.')
 hist = model.fit([encoder_input_data, decoder_input_data], decoder_target_data,
           batch_size=batch_size, epochs=epochs, validation_split=0.2, verbose=1,
           callbacks=[SavePredictModelCallback(latent_dim, encoder_inputs, encoder_states, decoder_inputs)])
