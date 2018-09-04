@@ -9,8 +9,8 @@ import numpy as np
 import pickle
 
 # Files
-src_file = 'datasets/train.en.1000'
-tgt_file = 'datasets/train.ja.1000'
+src_file = 'datasets/train.en'
+tgt_file = 'datasets/train.ja'
 save_dir = 'tanaka_en_ja'
 os.makedirs(save_dir, exist_ok=True)
 
@@ -33,6 +33,7 @@ src_tokenizer.fit_on_texts(src_data)
 src_word2id = src_tokenizer.word_index
 src_word2id['ignore'] = 0
 num_encoder_tokens = max(src_word2id.values()) + 1
+print('num_encoder_tokens:', num_encoder_tokens)
 
 encoder_input_seq = src_tokenizer.texts_to_sequences(src_data)
 encoder_input_seq = [np.pad(s, (0, max_src - len(s)), 'constant', constant_values=0) for s in encoder_input_seq]
@@ -43,6 +44,7 @@ tgt_tokenizer.fit_on_texts(tgt_data)
 tgt_word2id = tgt_tokenizer.word_index
 tgt_word2id['ignore'] = 0
 num_decoder_tokens = max(tgt_word2id.values()) + 1
+print('num_decoder_tokens:', num_decoder_tokens)
 
 decoder_input_seq = tgt_tokenizer.texts_to_sequences(tgt_input_data)
 decoder_input_seq = [np.pad(s, (0, max_tgt - len(s)), 'constant', constant_values=0) for s in decoder_input_seq]

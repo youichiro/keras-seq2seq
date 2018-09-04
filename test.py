@@ -1,3 +1,6 @@
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+
 import keras
 import pickle
 import numpy as np
@@ -7,9 +10,9 @@ max_decoder_seq_length = 70
 
 # Load models
 encoder_model = keras.models.load_model(save_dir + '/encoder_model.h5')
-encoder_model.load_weights(save_dir + '/encoder_model_weights.2.h5')
+encoder_model.load_weights(save_dir + '/encoder_model_weights.1.h5')
 decoder_model = keras.models.load_model(save_dir + '/decoder_model.h5')
-decoder_model.load_weights(save_dir + '/decoder_model_weights.2.h5')
+decoder_model.load_weights(save_dir + '/decoder_model_weights.1.h5')
 
 # Load holds
 with open(save_dir + '/holds.pkl', 'rb') as f:
@@ -49,8 +52,8 @@ def decode_sequence(input_seq):
 # Test
 seq = 'i have a rule'
 input_seq = src_tokenizer.texts_to_sequences([seq])
-input_seq = [[np.pad(s, (0, max_src - len(s)), 'constant', constant_values=0) for s in input_seq]]
+input_seq = [np.pad(s, (0, max_src - len(s)), 'constant', constant_values=0) for s in input_seq]
 input_seq = keras.utils.to_categorical(input_seq)
-decoded_sentence = decode_sequence(input_seq[0])
+decoded_sentence = decode_sequence(input_seq)
 print(seq)
 print(' '.join(decoded_sentence))
