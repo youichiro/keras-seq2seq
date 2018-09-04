@@ -1,0 +1,3 @@
+datasets/*
+tanaka_en_ja
+!__init__.py
