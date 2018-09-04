@@ -27,8 +27,8 @@ tgt_id2word = {v: k for k, v in tgt_word2id.items()}
 num_encoder_tokens = max(src_word2id.values()) + 1
 num_decoder_tokens = max(tgt_word2id.values()) + 1
 
-def decode_sequence(input_seq):
-    states_value = encoder_model.predict(input_seq)
+def decode_sequence(input_data):
+    states_value = encoder_model.predict(input_data)
     target_seq = np.zeros((1, 1, num_decoder_tokens))
     target_seq[0, 0, tgt_word2id['bos']] = 1.
 
@@ -50,15 +50,18 @@ def decode_sequence(input_seq):
 
     return decoded_sentence
 
+def make_input_data(input_text):
+    input_seq = src_tokenizer.texts_to_sequences([input_text])
+    input_seq = [np.pad(s, (0, max_src - len(s)), 'constant', constant_values=0) for s in input_seq]
+    input_data = np.zeros((1, max_src, num_encoder_tokens), dtype='float32')
+    for i, word_id in enumerate(input_seq):
+        input_data[0, i, word_id] = 1.0
+    return input_data
+
+
 # Test
-seq = 'i have a rule'
-input_seq = src_tokenizer.texts_to_sequences([seq])
-input_seq = [np.pad(s, (0, max_src - len(s)), 'constant', constant_values=0) for s in input_seq]
-input_data = np.zeros(1, max_src, num_encoder_tokens)
-for i, word_id in enumerate(input_seq):
-    input_data[1, i, word_id] = 1.0
-# input_seq = keras.utils.to_categorical(input_seq)
-print(input_data)
+text = 'i have i have'
+input_data = make_input_data(text)
 decoded_sentence = decode_sequence(input_data)
-print(seq)
+print(text)
 print(' '.join(decoded_sentence))
