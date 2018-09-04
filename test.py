@@ -24,6 +24,7 @@ tgt_word2id = holds['tgt_word2id']
 max_src = holds['max_src']
 max_tgt = holds['max_tgt']
 tgt_id2word = {v: k for k, v in tgt_word2id.items()}
+num_encoder_tokens = max(src_word2id.values()) + 1
 num_decoder_tokens = max(tgt_word2id.values()) + 1
 
 def decode_sequence(input_seq):
@@ -53,7 +54,11 @@ def decode_sequence(input_seq):
 seq = 'i have a rule'
 input_seq = src_tokenizer.texts_to_sequences([seq])
 input_seq = [np.pad(s, (0, max_src - len(s)), 'constant', constant_values=0) for s in input_seq]
-input_seq = keras.utils.to_categorical(input_seq)
-decoded_sentence = decode_sequence(input_seq)
+input_data = np.zeros(1, max_src, num_encoder_tokens)
+for i, word_id in enumerate(input_seq):
+    input_data[1, i, word_id] = 1.0
+# input_seq = keras.utils.to_categorical(input_seq)
+print(input_data)
+decoded_sentence = decode_sequence(input_data)
 print(seq)
 print(' '.join(decoded_sentence))
